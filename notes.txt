@@ -1,0 +1,174 @@
+6502 pinouut
+
+bits   | pins
+-------|----------
+a0..11 | 9..20
+vss    | 21
+d7..d0 | 26..33
+R/W    | 34
+
+[
+  {"name": "Pin 1", "value": "VSS (Ground)"},
+  {"name": "Pin 2", "value": "RDY (Ready)"},
+  {"name": "Pin 3", "value": "PHI1 (Clock Out)"},
+  {"name": "Pin 4", "value": "IRQ (Interrupt Request)"},
+  {"name": "Pin 5", "value": "NC (No Connection)"},
+  {"name": "Pin 6", "value": "NMI (Non-Maskable Interrupt)"},
+  {"name": "Pin 7", "value": "SYNC (Synchronize)"},
+  {"name": "Pin 8", "value": "VCC (+5V Power)"},
+  {"name": "Pin 9", "value": "A0 (Address Bus)"},
+  {"name": "Pin 10", "value": "A1 (Address Bus)"},
+  {"name": "Pin 11", "value": "A2 (Address Bus)"},
+  {"name": "Pin 12", "value": "A3 (Address Bus)"},
+  {"name": "Pin 13", "value": "A4 (Address Bus)"},
+  {"name": "Pin 14", "value": "A5 (Address Bus)"},
+  {"name": "Pin 15", "value": "A6 (Address Bus)"},
+  {"name": "Pin 16", "value": "A7 (Address Bus)"},
+  {"name": "Pin 17", "value": "A8 (Address Bus)"},
+  {"name": "Pin 18", "value": "A9 (Address Bus)"},
+  {"name": "Pin 19", "value": "A10 (Address Bus)"},
+  {"name": "Pin 20", "value": "A11 (Address Bus)"},
+  {"name": "Pin 21", "value": "VSS (Ground)"},
+  {"name": "Pin 22", "value": "A12 (Address Bus)"},
+  {"name": "Pin 23", "value": "A13 (Address Bus)"},
+  {"name": "Pin 24", "value": "A14 (Address Bus)"},
+  {"name": "Pin 25", "value": "A15 (Address Bus)"},
+  {"name": "Pin 26", "value": "D7 (Data Bus)"},
+  {"name": "Pin 27", "value": "D6 (Data Bus)"},
+  {"name": "Pin 28", "value": "D5 (Data Bus)"},
+  {"name": "Pin 29", "value": "D4 (Data Bus)"},
+  {"name": "Pin 30", "value": "D3 (Data Bus)"},
+  {"name": "Pin 31", "value": "D2 (Data Bus)"},
+  {"name": "Pin 32", "value": "D1 (Data Bus)"},
+  {"name": "Pin 33", "value": "D0 (Data Bus)"},
+  {"name": "Pin 34", "value": "R/W (Read/Write)"},
+  {"name": "Pin 35", "value": "NC (No Connection)"},
+  {"name": "Pin 36", "value": "NC (No Connection)"},
+  {"name": "Pin 37", "value": "PHI0 (Clock In)"},
+  {"name": "Pin 38", "value": "SO (Set Overflow)"},
+  {"name": "Pin 39", "value": "PHI2 (Clock Out)"},
+  {"name": "Pin 40", "value": "RESET (Reset)"}
+]
+
+
+
+In the Commodore single floppy controller architecture, the two MOS 6522 VIA (Versatile Interface Adapter) chips split the workload: [1, 2] 
+
+* UC2 is dedicated entirely to the drive mechanism (controlling the stepper motor, disk speed, write protection, and denseness zones).
+* UX3 (labeled UC3 on some boards) is dedicated to serial communication (the external CBM/IEC bus) and tracking the user interface/drive switches. [1, 3] 
+
+------------------------------
+## UC2: Drive Mechanism Controller
+This chip directly handles the physical hardware components of the floppy disk drive. [1, 3] 
+
+| Pin Name | Pin # | Direction | Connected To / Usage |
+|---|---|---|---|
+| PA0 | 2 | Output | ST0 – Stepper Motor Phase 0 Control |
+| PA1 | 3 | Output | ST1 – Stepper Motor Phase 1 Control |
+| PA2 | 4 | Output | ST2 – Stepper Motor Phase 2 Control |
+| PA3 | 5 | Output | ST3 – Stepper Motor Phase 3 Control |
+| PA4 | 6 | Output | WPS – Write Protect Sensor Enable / LED drive |
+| PA5 | 7 | Output | DS0 – Density Select Bit 0 (Controls recording frequency / track zone) |
+| PA6 | 8 | Output | DS1 – Density Select Bit 1 (Controls recording frequency / track zone) |
+| PA7 | 9 | Input | SYNC – Sync Mark Detected (Indicates a hardware track sync sector) |
+| PB0 | 10 | Input | DATA IN – Raw data pulses read from the analog magnetic head block |
+| PB1 | 11 | Output | DATA OUT – Decoded output data path |
+| PB2 | 12 | Output | MTR – Spindle Motor On/Off Control |
+| PB3 | 13 | Output | ACT – Activity LED Control (The front red light indicator) |
+| PB4 | 14 | Input | WPS – Write Protect Sensor Switch Input (Detects if notch is covered) |
+| PB5 | 15 | Output | YBIT – Track offset/calibration alignment |
+| PB6 | 16 | Output | EDG – Read signal pulse edge/threshold selection |
+| PB7 | 17 | Input | BYTE READY – Informs CPU an entire byte has completed shifting in |
+| CA1 | 40 | Input | BYTE READY – Latches parallel bytes into processing loops |
+| CA2 | 39 | Output | SOE – Serial Output Enable / Logic Gate controls |
+| CB1 | 18 | Input | CLK IN – Drive logic system timing clock reference |
+| CB2 | 19 | Output | MODE – Controls Read mode (0) vs. Write mode (1) |
+
+------------------------------
+## UX3: Serial Bus (CBM/IEC) & Device ID Controller
+This chip communicates externally with the computer (like a Commodore 64) and manages drive identification. [1, 2, 4] 
+
+| Pin Name | Pin # | Direction | Connected To / Usage |
+|---|---|---|---|
+| PA0 | 2 | Input | Device ID Switch 0 (Hardware jumper setting for drive address 8, 9, 10, 11) |
+| PA1 | 3 | Input | Device ID Switch 1 (Hardware jumper setting for drive address 8, 9, 10, 11) |
+| PA2 | 4 | Input | ATN IN – Attention input line from external computer |
+| PA3 | 5 | Output | ATN OUT – Handshake echo response line |
+| PA4 | 6 | - | Unused / Reserved Pull-up |
+| PA5 | 7 | - | Unused / Reserved Pull-up |
+| PA6 | 8 | - | Unused / Reserved Pull-up |
+| PA7 | 9 | Output | ATN ACK – Local Attention Acknowledge internal signal interrupt |
+| PB0 | 10 | Input | DATA IN – IEC Serial Data Input line from computer |
+| PB1 | 11 | Output | DATA OUT – IEC Serial Data Output line to computer |
+| PB2 | 12 | Input | CLK IN – IEC Serial Clock Input line from computer |
+| PB3 | 13 | Output | CLK OUT – IEC Serial Clock Output line to computer |
+| PB4 | 14 | Input | ATN IN – Primary interrupt vector path for Attention line |
+| PB5 | 15 | Input | DEVICE ID 2 (Alternate address config line) |
+| PB6 | 16 | Output | WPS SENSE – External diagnostic or control path loop |
+| PB7 | 17 | Output | ATN OUT – Secondary physical line drive logic for external daisy-chains |
+| CA1 | 40 | Input | ATN IN – Tied directly to the fast interrupt capture line |
+| CA2 | 39 | Output | DRV RESET – Local reset pulse generator for cascade modules |
+| CB1 | 18 | Input | SRQ IN – Service Request Line (Left mostly unused on standard 1541) |
+| CB2 | 19 | Output | SRQ OUT – Fast serial clock/data handshaking array output |
+
+------------------------------
+## Shared Control & Infrastructure Pins
+Both UC2 and UX3 share a common control footprint connecting them back to the 6502 processing core:
+
+* Pins 26–33 (DB0–DB7): Bidirectional Data Bus tied straight to the 6502 processor.
+* Pins 35–38 (RS0–RS3): Register Select lines connected to Address lines A0–A3.
+* Pin 22 (R/W): Read/Write control line from the CPU.
+* Pin 25 ($\Phi_2$): System clock input running at 1MHz.
+* Pin 34 (/RES): Hardware Reset line.
+* Pin 21 (/IRQ): Open-collector interrupt requests running back to the CPU's primary interrupt handler. [5] 
+
+
+This is a schematic diagram for a [Commodore Single Floppy Controller]
+
+(https://www.google.com/search?kgmid=FAILED_OR_SKIPPED) 
+
+(Board Number 1540049-01, Revision B). 
+
+It serves as the main controller board for early Commodore disk drives, such as the Commodore 1540 or 1541.
+
+The circuit is built around a classic MOS Technology 6502 CPU architecture, managing data transmission, motor control, and read/write operations for a floppy disk drive.
+------------------------------
+## 1. Core Integrated Circuits (ICs) & Processors
+
+* 6502 CPU (UC4): The central processing unit running at 1MHz, managing the disk drive's operational logic.
+* 6522 VIA (Versatile Interface Adapters - UC2 & UX3): Dual peripheral controllers handling input/output lines, parallel-to-serial conversion, timers, and drive mechanism interfaces.
+* 2364 ROM (UB4): An 8KB Read-Only Memory chip containing the drive's firmware/operating system (Commodore DOS).
+* 2114 / 2016 RAM (UB2, UB3): Static RAM chips providing volatile memory for data buffering and CPU workspace.
+* 325572-01 (UC1): A proprietary Commodore gate array custom IC used for specialized disk read/write logic and clock control.
+
+------------------------------
+## 2. Logic Gates & Signal Conditioning (Glue Logic)
+
+* 74LS14 (UC5, UD5): Hex Schmitt-trigger inverters used for clean pulse shaping and debouncing.
+* 74LS86 (UD3, UE5): Quad 2-input XOR gates used in signal processing and timing logic.
+* 74LS00 / 74LS08 / 74LS10: Standard NAND and AND logic gates distributed throughout the address decoding and read/write window circuitry.
+* 7406 / 7416 / 7417: High-voltage open-collector inverters and buffers used to drive external lines and interface safely with high-current motor control signals.
+* 9602 (UD2, UD4): Dual monostable multivibrators (one-shot timers) controlling head-settling, write-gate delays, or step timing windows.
+
+------------------------------
+## 3. Analog & Read/Write Amplifiers
+
+* LM311 (UE4): High-speed voltage comparator used to digitize raw analog data pulses coming from the disk magnetic read head.
+* NE592 (UF4, UF5): Video/differential amplifiers optimized for amplifying the minute analog differential signals read directly from the diskette.
+
+------------------------------
+## 4. Power Supply Components (Bottom Left)
+
+* Transformer & Rectifier Bridge: Steps down AC mains power and converts it to unregulated DC.
+* VR1 (LM340-12): A linear voltage regulator outputting a stable +12V DC rail primarily for spindle/stepper motor circuits.
+* VR2 (LM340-5): A linear voltage regulator outputting a stable +5V DC rail to power all the TTL and MOS digital ICs.
+* Filtering Capacitors: Large electrolytic capacitors (e.g., 6800µF, 4700µF) to smooth voltage ripples.
+
+------------------------------
+## 5. Discrete Semiconductors & Electromechanical
+
+* Transistors (2SC945, 2SA733, 2N3582 etc.): NPN and PNP discrete transistors driving low-level relays, write protection lines, or LED indicators.
+* Diodes (1N4002, CR5, etc.): Rectification and transient voltage suppression diodes.
+* X-TAL Modul (1MHz): A crystal oscillator unit supplying the master clock signal to the 6502 CPU.
+* Connectors (P1 to P8): Interface ports routing power, drive head signals, stepper motor coils, write-protect sensors, and the external serial IEEE-488/CBM bus.
+

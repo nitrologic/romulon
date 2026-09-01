@@ -1,0 +1,276 @@
+// romulon.cpp
+
+#include <bitset>
+#include <ostream>
+#include <iostream>
+#include <iomanip>
+#include <string>
+#include <cstdint>
+#include <sys/types.h>
+#include <vector>
+#include <optional>
+#include "picosdk/picosdk.h"
+//#include <pico/bootrom.h>
+//#include "tusb.h"
+//#include "device/usbd.h"
+//#include "class/cdc/cdc_device.h"
+
+std::string picoTitle = "romulon 0.2";
+
+// D0..D7 = 13..20
+// A0..A7 = 12..5
+// A8..A9 = 3..4
+// A12
+// CE
+// A10..A11 
+
+int WatchdogTimeout=1200;
+int ShutdownTimeout=400;
+
+#define POWER_LED_PIN 25
+#define UART_TX_PIN 0
+#define UART_RX_PIN 1
+
+void blink(){
+	static int blink=0;
+	blink=1-blink;
+	gpio_put(POWER_LED_PIN, blink);
+}
+
+
+#include "json.h"
+
+void rpcError(int code, std::string message, std::string data, int id=999){
+	std::stringstream err;
+	err << "{\"code\":" << code 
+		<< ",\"message\":\"" << message 
+		<< "\",\"data\":" << data << "}";
+	out << "{\"jsonrpc\":\"2.0\",\"error\":" << err.str() << ",\"id\":" << id << "}"  <<std::endl;
+}
+
+JSONParser parser;
+
+void updateRPC(){
+	std::stringstream lines;
+	while(std::optional<std::string> myline=cdcReadLine()){
+		std::string line=myline.value();
+//			if(line=="BOOT") shutdownSystem=true;
+		if(!line.empty()){
+			if(line=="BOOT") shutdownSystem=true;
+			if(line.front() == '{'){
+				JSValue *payload;
+				int status=parser.parseJSON(line,&payload);
+				std::string method=payload->stringMember("method");
+				int id=(int)payload->integerMember("id");
+				JSObject *params=payload->objectMember("params");
+				if(params){
+					if(method=="rtc.set"){
+						int64_t t=params->integerMember("time");
+						bool success=false;//setTime(t);
+						if(success){
+							out << "{\"jsonrpc\":\"2.0\",\"result\":\"setTime to " << t << "\",\"id\":"<<id<<"}" << std::endl;
+						}else{
+							rpcError(-32501,"setTime failure","null",id);
+						}
+					}
+					if(method=="vidbit.set"){
+						std::string title=params->stringMember("title");
+						std::string about=params->stringMember("about");
+						out << "{\"jsonrpc\":\"2.0\",\"result\":\"vidbit.set title " << title << " about " << about << "\",\"id\":"<<id<<"}" << std::endl;
+					}
+					if(method=="vidbit.keys"){
+						std::string s=params->stringMember("text");
+						out << "{\"jsonrpc\":\"2.0\",\"result\":\"" << s << "\",\"id\":"<<id<<"}" << std::endl;
+					}
+				}
+			}else{
+				out<<"error:"<<line<<std::endl;
+			}
+		}
+	}
+
+}
+
+
+bool readBootSelect();
+
+void log(const char *ascii);
+
+#define CDC_COMMANDS
+
+bool shutdownSystem=false;
+
+const char *nvm_header = "PICOTOOL";	// must be 8 chars
+
+int shellCount=0;
+
+int runShell(){
+	watchdog_enable(WatchdogTimeout,false);
+	while(!shutdownSystem) {
+		int count=shellCount++;
+		sleep_ms(50);
+		blink();
+		bool bootSel=readBootSelect();
+		if(!bootSel && !shutdownSystem){
+			watchdog_update();
+		}
+		tud_task();
+		updateRPC();
+		cdcFlush();
+	}
+	return 0;
+}
+
+struct nonVolatile{
+	uint8_t header[8];
+	uint8_t sn[8];
+	uint8_t flags[8];
+	int pagecount;
+};
+
+nonVolatile *_nvm = (nonVolatile *)PICO_NVM;
+
+void startup(){
+	if(memcmp(_nvm,nvm_header,sizeof(nonVolatile))!=0){
+		nonVolatile blank={0};
+		memcpy(blank.header,nvm_header,8);
+		// all zero nvm_mem
+		log("factory defaults");
+//		flash_erase(0);
+//		log("installed");
+//		flash_memory(0,(const uint8_t*)&blank,1);
+	}else{
+		log("startup");
+	}
+}
+
+uint32_t currentPins=0;
+uint32_t currentCount=0;
+uint32_t blinkCount=0;
+
+bool rtcGood;
+int mode=0;
+
+// picomain.cpp
+// pico vidbit tool by simon
+// sampler is off HAS_DISPLAY is what
+
+const int dpins=0x1fe0;
+const int apins=0x0018;
+
+uint32_t hitCount=0;
+
+uint32_t buffer[20000];
+
+int runSample(){
+    while(hitCount<1e4){
+		uint32_t pins=gpio_get_all();
+		currentCount++;
+//		pins&=0x1fe0;	// d0..d7
+//		pins&=0x1fe0;	// d0..d7
+
+		uint64_t t64=time_us_64();
+		uint16_t t32=(uint32_t)t64;
+
+		if(pins!=currentPins){
+			currentPins=pins;
+			buffer[hitCount*2+0]=pins;
+			buffer[hitCount*2+1]=t32;
+			hitCount++;
+		}
+		if((currentCount&0xfff)==0){
+			if(blinkCount!=hitCount){
+				blinkCount=hitCount;
+				blink();
+			}
+		}
+		sleep_us(100);
+	}
+    return 1e4;   
+}
+
+
+typedef std::string utf8;
+
+std::vector<utf8> locallog;
+std::vector<utf8> commandQueue;
+
+void log(const char *ascii){
+	uint64_t t64=time_us_64();
+	uint16_t t16=(uint16_t)t64;
+#ifdef printf_log	
+	printf("%u %s\r\n",t16,ascii);
+#else
+	static char buffer[1024];
+	snprintf(buffer,1024,"%u %s",t16,ascii);
+	utf8 line {buffer};
+	locallog.push_back(line);
+#endif
+}
+
+bool setTime(int64_t seconds);
+std::string wallTime();
+
+uint64_t microCount();
+uint32_t cycleFrequency();
+
+#include <hardware/pio.h>
+#include <hardware/rtc.h>
+#include <sstream>
+
+int initRomulus(){
+	uint64_t t1=time_us_64();
+	uint64_t t2=time_us_64();
+	sleep_ms(400);
+	for(uint pin=0;pin<23;pin++){
+		gpio_init(pin);
+		gpio_set_dir(pin,GPIO_IN);
+		gpio_set_pulls(pin,false,false);
+//		gpio_put(pin, 0);
+	}
+	for(uint pin=26;pin<28;pin++){
+		gpio_init(pin);
+		gpio_set_dir(pin,GPIO_IN);
+		gpio_set_pulls(pin,false,false);
+//		gpio_put(pin, 0);
+	}
+	gpio_init(POWER_LED_PIN);
+	gpio_set_dir(POWER_LED_PIN,GPIO_OUT);
+	return 0;
+}
+
+int runRomulus(){
+//	startup();
+	log(picoTitle.c_str());
+//	testComplexInt();
+//	testFFTInt(10);
+//	watchdog_enable(WatchdogTimeout,false);
+	int count=runSample();
+	for(int i=0;i<count;i++){
+		uint32_t bits=buffer[i*2];
+		uint32_t t=buffer[i*2+1];
+		out << std::bitset<32>(bits) << " " << std::setfill('0') << std::setw(5) << t <<std::endl;
+		cdcFlush();
+	}
+	return 0;
+}
+
+/*
+		bool cpress=c.set(bootSel);
+		if(cpress){
+			mode=(mode+1)&3;
+			std::string setMode = "{\"jsonrpc\":\"2.0\",\"method\":\"romulus.set\",\"params\":{\"mode\":" + std::to_string(mode) + "},\"id\":2}";
+			std::cout<<setMode<<std::endl;
+		}
+
+*/
+
+int main(void){
+	stdio_init_all();
+	cdcInit();
+	int res=initRomulus();
+	int result=runShell();
+//	int result=runRomulus();
+	rom_reset_usb_boot(0, 0);
+	return result;
+}

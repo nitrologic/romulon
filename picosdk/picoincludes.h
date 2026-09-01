@@ -1,0 +1,25 @@
+#pragma once
+
+#include "pico/stdlib.h"
+//#include "pico/mem_ops.h"
+#include "pico/multicore.h"
+#include "pico/rand.h"
+#include "pico/bootrom.h"
+
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+#include "hardware/pwm.h"
+#include "hardware/i2c.h"
+#include "hardware/spi.h"
+#include "hardware/adc.h"
+#include "hardware/dma.h"
+#include "hardware/irq.h"
+#include "hardware/uart.h"
+#include "hardware/sync.h"
+#include "hardware/flash.h"
+//#include "hardware/rtc.h"
+
+#include "hardware/watchdog.h"
+#include "hardware/structs/ioqspi.h"
+#include "hardware/structs/pll.h"
+#include "hardware/structs/clocks.h"
