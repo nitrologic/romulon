@@ -164,3 +164,36 @@ void cdcInit(){
 	line_lock = spin_lock_init(spin_lock_claim_unused(true));
 	stdio_set_chars_available_callback(cdcReceiveCallback, NULL);
 }
+
+
+// vm src system.cpp
+
+const char *dex="0123456789abcdef";
+const int divs[]={1000000000,100000000,10000000,1000000,100000,10000,1000,100,10,1};
+
+char *hexout(char *p,int v){
+	for (int i=0;i<8;i++) {*p++=dex[(v>>28)&15];v=v<<4;} return p;
+}
+
+char *hexout2(char *p,int v){
+	int o=0;
+	for (int i=0;i<8;i++)
+	{
+		if (v&0xf0000000) o=1;
+		if (i>5) o=1;				//==7
+		if (o) *p++=dex[(v>>28)&15];
+		v=v<<4;
+	}
+	return p;
+}
+
+char *decout(char *p,int v){
+	unsigned int u,t;
+	int		i,c,z;
+
+	if (v==0) {*p++='0';return p;}
+	if (v<0) {*p++='-';v=-v;}
+	z=0;u=(unsigned int)v;
+	for (i=0;i<10;i++) {t=divs[i];for (c=0;u>=t;c++) u-=t;z|=c;if (z) *p++=48+c;}
+	return p;
+}

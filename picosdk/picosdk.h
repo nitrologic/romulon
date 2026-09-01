@@ -34,3 +34,7 @@ bool readBootSelect();
 extern bool shutdownSystem;
 
 //static const int PICO_MASK=0x0fffffff;
+
+char *hexout(char *p,int v);
+
+void rpcSend(std::string name,std::string value);

@@ -1,4 +1,48 @@
-6502 pinouut
+### 2364 rom socket
+
+bits    | pins
+--------|----------
+a7..a0  | 1..8
+d0..d2  | 9..11
+gnd     | 12
+d3..d7  | 13..17
+a11..a10| 18..19
+CS      | 20
+a12     | 21
+a9..a8  | 22..23
+vcc     | 24
+
+```
+[
+  {"pin": 1, "name": "A7 (Address)"},
+  {"pin": 2, "name": "A6 (Address)"},
+  {"pin": 3, "name": "A5 (Address)"},
+  {"pin": 4, "name": "A4 (Address)"},
+  {"pin": 5, "name": "A3 (Address)"},
+  {"pin": 6, "name": "A2 (Address)"},
+  {"pin": 7, "name": "A1 (Address)"},
+  {"pin": 8, "name": "A0 (Address)"},
+  {"pin": 9, "name": "D0 (Data)"},
+  {"pin": 10, "name": "D1 (Data)"},
+  {"pin": 11, "name": "D2 (Data)"},
+  {"pin": 12, "name": "GND (Ground)"},
+  {"pin": 13, "name": "D3 (Data)"},
+  {"pin": 14, "name": "D4 (Data)"},
+  {"pin": 15, "name": "D5 (Data)"},
+  {"pin": 16, "name": "D6 (Data)"},
+  {"pin": 17, "name": "D7 (Data)"},
+  {"pin": 18, "name": "A11 (Address)"},
+  {"pin": 19, "name": "A10 (Address)"},
+  {"pin": 20, "name": "/CS (Chip Select)"},
+  {"pin": 21, "name": "A12 (Address)"},
+  {"pin": 22, "name": "A9 (Address)"},
+  {"pin": 23, "name": "A8 (Address)"},
+  {"pin": 24, "name": "VCC (+5V Power)"}
+]
+
+
+
+6502 pinout
 
 bits   | pins
 -------|----------
@@ -49,8 +93,6 @@ R/W    | 34
   {"name": "Pin 39", "value": "PHI2 (Clock Out)"},
   {"name": "Pin 40", "value": "RESET (Reset)"}
 ]
-
-
 
 In the Commodore single floppy controller architecture, the two MOS 6522 VIA (Versatile Interface Adapter) chips split the workload: [1, 2] 
 

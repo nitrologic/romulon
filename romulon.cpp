@@ -15,14 +15,31 @@
 //#include "device/usbd.h"
 //#include "class/cdc/cdc_device.h"
 
-std::string picoTitle = "romulon 0.2";
+std::string picoTitle = "romulon 0.4";
 
+// pin | gpio | mask 
 // D0..D7 = 13..20
-// A0..A7 = 12..5
+// A0..A7 = 5..12
 // A8..A9 = 3..4
 // A12
-// CE
+// CE     | 22       | 0x00400000
 // A10..A11 
+
+std::string message(pins){
+
+}
+
+/*
+a7..a0  | 1..8
+d0..d2  | 9..11
+gnd     | 12
+d3..d7  | 13..17
+a11..a10| 18..19
+CS      | 20
+a12     | 21
+a9..a8  | 22..23
+vcc     | 24
+*/
 
 int WatchdogTimeout=1200;
 int ShutdownTimeout=400;
@@ -31,10 +48,21 @@ int ShutdownTimeout=400;
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
+
+const uint32_t CE = 00400000;
+
 void blink(){
 	static int blink=0;
 	blink=1-blink;
 	gpio_put(POWER_LED_PIN, blink);
+}
+
+
+int sendCount=0;
+
+void rpcSend(std::string name,std::string value){
+	int id=2e5+(sendCount++);
+	out << "{\"jsonrpc\":\"2.0\",\"result\":\""<<name<<"\"=\""<<value<<"\",\"id\":"<<id<<"}" << std::endl;
 }
 
 
@@ -91,7 +119,6 @@ void updateRPC(){
 
 }
 
-
 bool readBootSelect();
 
 void log(const char *ascii);
@@ -104,16 +131,28 @@ const char *nvm_header = "PICOTOOL";	// must be 8 chars
 
 int shellCount=0;
 
+uint32_t shellPins=0;
+
+char hexbuffer[8]={};
+
 int runShell(){
 	watchdog_enable(WatchdogTimeout,false);
 	while(!shutdownSystem) {
 		int count=shellCount++;
-		sleep_ms(50);
+		uint32_t pins=gpio_get_all()|0x02000000;
+		if(pins!=shellPins){
+			shellPins=pins;
+			hexout(hexbuffer,pins);
+			rpcSend("pins",std::string(hexbuffer));
+			sleep_us(100);
+		}else{
+			sleep_ms(50);
+		}
 		blink();
 		bool bootSel=readBootSelect();
 		if(!bootSel && !shutdownSystem){
 			watchdog_update();
-		}
+		}	
 		tud_task();
 		updateRPC();
 		cdcFlush();
