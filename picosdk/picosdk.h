@@ -35,6 +35,6 @@ extern bool shutdownSystem;
 
 //static const int PICO_MASK=0x0fffffff;
 
-char *hexout(char *p,int v);
+char *hexout(char *buffer,int value,int digits);
 
 void rpcSend(std::string name,std::string value);

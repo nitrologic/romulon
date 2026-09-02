@@ -171,8 +171,13 @@ void cdcInit(){
 const char *dex="0123456789abcdef";
 const int divs[]={1000000000,100000000,10000000,1000000,100000,10000,1000,100,10,1};
 
-char *hexout(char *p,int v){
-	for (int i=0;i<8;i++) {*p++=dex[(v>>28)&15];v=v<<4;} return p;
+char *hexout(char *p,int v,int digits){
+	int shift=(digits-1)*4;
+	for (int i=0;i<digits;i++) {
+		*p++=dex[(v>>shift)&15];
+		v=v<<4;
+	}
+	return p;
 }
 
 char *hexout2(char *p,int v){

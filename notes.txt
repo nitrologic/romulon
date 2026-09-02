@@ -1,3 +1,71 @@
+🟠nitrologic Relay 2.0.2 gemini-3.7-flash 🌟 🪠 0.7° $0.006 3.537KB 5.90s
+The log shows 6502 bus activity captured from the 1541 disk drive.
+
+Trace Analysis
+
+Each entry contains three fields:
+1. Address/Control word (4 hex digits): Encodes the lower address lines along with
+control/status pins.
+2. Data bus (2 hex digits): Shows instructions and immediate data being fetched on the 6502
+bus.
+3. Timestamp (4 hex digits): Monotonically increasing timer counter to measure bus cycle
+duration.
+
+Observed 6502 Instruction Patterns
+
+Looking at the data stream, several standard 6502 operations and loop sequences are visible:
+
+• `88` (`DEY`) — Decrement Y register.
+• `D0 FC` (`BNE -4`) — Relative branch back 4 bytes (a tight delay/polling loop).
+• `69 01` (`ADC #01`) — Add with carry immediate `01`.
+• `29` / `A8` / `B8` — `AND` immediate, `TAY`, etc.
+
+The timestamps increment by roughly `0500` to `0514` ticks between full cycles, consistent with a
+hardware sample counter running at a fixed frequency relative to the drive's ~1 MHz clock.
+
+Please let me know how you would like to proceed with this data (for instance, disassembling the
+captured stream, writing a parser for the JSON-RPC messages, or decoding the specific bitmapping of
+the address/control field).
+
+>
+
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a93 fc 79e0","id":270690}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a92 d0 7e90","id":270691}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0291 01 83a4","id":270692}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0291 29 85fc","id":270693}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0291 69 878c","id":270694}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0290 88 88b8","id":270695}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0694 88 8b10","id":270696}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a93 fc 8dcc","id":270697}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a92 d0 92e0","id":270698}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0291 01 97f4","id":270699}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0290 69 9d08","id":270700}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0694 88 a21c","id":270701}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a93 fc a6cc","id":270702}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a92 d0 abe0","id":270703}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a92 d1 af00","id":270704}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a92 51 afc8","id":270705}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a92 01 b02c","id":270706}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0281 01 b0f4","id":270707}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0280 01 b34c","id":270708}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0e7f 69 b608","id":270709}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a83 88 bb1c","id":270710}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a82 fc c030","id":270711}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0281 d0 c544","id":270712}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0280 01 ca58","id":270713}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0e7f 69 cf6c","id":270714}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a83 88 d41c","id":270715}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a83 a8 d610","id":270716}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a83 b8 d804","id":270717}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a83 fc d868","id":270718}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a82 d0 d930","id":270719}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0280 d0 db88","id":270720}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0281 d0 dbec","id":270721}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0280 01 de44","id":270722}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0e7f 69 e358","id":270723}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a83 88 e86c","id":270724}
+[RX] line:{"jsonrpc":"2.0","result":"stamp"="0a82 fc ed80","id":270725}
+
 ### 2364 rom socket
 
 bits    | pins

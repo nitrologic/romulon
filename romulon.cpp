@@ -17,29 +17,45 @@
 
 std::string picoTitle = "romulon 0.4";
 
-// pin | gpio | mask 
-// D0..D7 = 13..20
-// A0..A7 = 5..12
-// A8..A9 = 3..4
-// A12
-// CE     | 22       | 0x00400000
-// A10..A11 
+const uint32_t UB3_CE = 0x00400000;
 
-std::string message(pins){
+// pin      | gpio     | mask 
+// D0..D7   | 13..20
+// A7..A0   | 5..12
+// A8..A9   | 3..4
+// A12      | 23
+// CE       | 22       | 0x00400000
+// A11..A10 | 11..10
 
+char hexBuffer[8]={32};
+
+int reverse8(int bits){
+	return
+		((bits&0x80)>>7)|
+		((bits&0x40)>>5)|
+		((bits&0x20)>>3)|
+		((bits&0x10)>>1)|
+		((bits&0x08)<<1)|
+		((bits&0x04)<<3)|
+		((bits&0x02)<<5)|
+		((bits&0x01)<<7);
 }
 
-/*
-a7..a0  | 1..8
-d0..d2  | 9..11
-gnd     | 12
-d3..d7  | 13..17
-a11..a10| 18..19
-CS      | 20
-a12     | 21
-a9..a8  | 22..23
-vcc     | 24
-*/
+std::string pinStamp(uint32_t t,uint32_t pins){
+	int d=(pins>>13)&0xff;
+	int a07=reverse8((pins>>5)&0xff);
+	int a89=(pins>>3)&0x03;
+	int a1011=(pins>>10)&0x03;
+	int a12=(pins>>23)&1;
+	int a=a07|(a89<<8)|(a1011<<10)|(a12<<12);
+	char buffer[13]={32};
+	hexout(buffer+0,a,4);
+	buffer[5]=32;
+	hexout(buffer+6,d,2);
+	buffer[8]=32;
+	hexout(buffer+9,t,4);
+	return std::string(buffer,13);
+}
 
 int WatchdogTimeout=1200;
 int ShutdownTimeout=400;
@@ -48,15 +64,11 @@ int ShutdownTimeout=400;
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
-
-const uint32_t CE = 00400000;
-
 void blink(){
 	static int blink=0;
 	blink=1-blink;
 	gpio_put(POWER_LED_PIN, blink);
 }
-
 
 int sendCount=0;
 
@@ -133,7 +145,34 @@ int shellCount=0;
 
 uint32_t shellPins=0;
 
-char hexbuffer[8]={};
+struct GPIOSample {
+	uint32_t timestamp;
+	uint32_t gpio;
+};
+
+std::vector<GPIOSample> pinBuffer;
+
+void emitBuffer(){
+}
+
+void sampleRom(int enable){
+	// active /CE means we write data on bus
+	pinBuffer.clear();
+	uint32_t pins=gpio_get_all()|0x02000000;
+	while((pins&enable)==0){
+		uint64_t t64=time_us_64();
+		uint32_t t32=(uint32_t)t64;
+		pinBuffer.push_back({t32,pins});		
+		uint32_t oldPins=pins;
+		if(pinBuffer.size()>1024) break;
+		while(pins==oldPins){	
+			sleep_us(100);
+			pins=gpio_get_all()|0x02000000;
+		}
+	}
+}
+
+bool shellActive=false;	//active low 
 
 int runShell(){
 	watchdog_enable(WatchdogTimeout,false);
@@ -142,11 +181,29 @@ int runShell(){
 		uint32_t pins=gpio_get_all()|0x02000000;
 		if(pins!=shellPins){
 			shellPins=pins;
-			hexout(hexbuffer,pins);
-			rpcSend("pins",std::string(hexbuffer));
+/*
+			if((pins&UB3_CE)==0){
+				if(shellActive){
+					sampleRom(UB3_CE);
+					shellActive=false;
+				}
+			}else{
+				shellActive=true;
+			}
+*/				
+			sampleRom(0);
+			size_t n=pinBuffer.size();
+			for(size_t i=0;i<n;i++){
+				GPIOSample s=pinBuffer[i];
+				rpcSend("stamp",pinStamp(s.timestamp,s.gpio));
+				cdcFlush();
+			}
+			uint64_t t64=time_us_64();
+			uint32_t t32=(uint32_t)t64;
+			rpcSend("pin",pinStamp(t32,pins));
 			sleep_us(100);
 		}else{
-			sleep_ms(50);
+			sleep_us(500);
 		}
 		blink();
 		bool bootSel=readBootSelect();
