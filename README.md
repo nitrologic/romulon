@@ -2,7 +2,7 @@
 
 <img src="image/romulon.jpg" alt="romulon" width="33%"/>
 
-# nitrologic romulon 0.01
+# nitrologic romulon 0.5
 
 ## Catching the 8 bit bus the IC formerly known as UB3
 

@@ -15,7 +15,7 @@
 //#include "device/usbd.h"
 //#include "class/cdc/cdc_device.h"
 
-std::string picoTitle = "romulon 0.4";
+std::string picoTitle = "romulon 0.5";
 
 const uint32_t UB3_CE = 0x00400000;
 
