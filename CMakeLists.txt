@@ -34,7 +34,7 @@ add_executable(romulon
 )
 
 pico_enable_stdio_usb(romulon 1)
-#pico_enable_stdio_uart(romulon 1)
+pico_enable_stdio_uart(romulon 0)
 
 target_link_libraries(romulon
 	pico_util
@@ -46,7 +46,7 @@ target_link_libraries(romulon
 	hardware_adc 
 	hardware_dma 
 	hardware_pio 
-	hardware_uart
+#	hardware_uart
 	hardware_i2c 
 	hardware_pwm
 )

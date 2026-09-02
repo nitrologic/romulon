@@ -2,9 +2,9 @@
 
 <img src="image/romulon.jpg" alt="romulon" width="33%"/>
 
-# romulon 0.5
+# romulon 0.6
 
-## Catching the 8 bit bus with an IC formerly known as UB3
+## Snooping the 6502 bus with IC formerly known as UB3
 
 <img src="image/desk1.jpg" alt="desk" width="66%"/>
 
@@ -18,10 +18,13 @@
 
 bits   | pins
 -------|----------
-a0..11 | 9..20
-vss    | 21
-d7..d0 | 26..33
+VDD    | 8
+A0..11 | 9..20
+VSS    | 21
+A12..15| 22..25
+D7..d0 | 26..33
 R/W    | 34
+/RESET | 40
 
 ### 2364 rom socket
 

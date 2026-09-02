@@ -15,19 +15,24 @@
 //#include "device/usbd.h"
 //#include "class/cdc/cdc_device.h"
 
-std::string picoTitle = "romulon 0.5";
+std::string picoTitle = "romulon 0.6";
 
-const uint32_t UB3_CE = 0x00400000;
+bool connected=false;
+
+const uint32_t UB3_CE = 0x04000000;
 
 // pin      | gpio     | mask 
+// ---------|----------|
 // D0..D7   | 13..20
 // A7..A0   | 5..12
+// A11      | 21
+// A10      | 22
+// CS       | 26       | 0x04000000
+// A12      | 27
 // A8..A9   | 3..4
-// A12      | 23
-// CE       | 22       | 0x00400000
-// A11..A10 | 11..10
-
-char hexBuffer[8]={32};
+// A13..A15 | 0..2  * 
+// RW       | 28		| 0x10000000
+// * courtesy 6502 pins 23..25 28
 
 int reverse8(int bits){
 	return
@@ -45,24 +50,30 @@ std::string pinStamp(uint32_t t,uint32_t pins){
 	int d=(pins>>13)&0xff;
 	int a07=reverse8((pins>>5)&0xff);
 	int a89=(pins>>3)&0x03;
-	int a1011=(pins>>10)&0x03;
-	int a12=(pins>>23)&1;
-	int a=a07|(a89<<8)|(a1011<<10)|(a12<<12);
-	char buffer[13]={32};
+	int a10=(pins>>22)&0x01;
+	int a11=(pins>>21)&0x01;
+	int a12=(pins>>27)&1;
+	int a1315=(pins)&7;
+	int cs=(pins>>26)&1;
+	int rw=(pins>>28)&1;
+	int a=a07|(a89<<8)|(a10<<10)|(a11<<11)|(a12<<12)|(a1315<<13);
+	char buffer[20]={32};
 	hexout(buffer+0,a,4);
 	buffer[5]=32;
 	hexout(buffer+6,d,2);
 	buffer[8]=32;
-	hexout(buffer+9,t,4);
-	return std::string(buffer,13);
+	buffer[9]=rw?'R':'W';
+	buffer[10]=32;
+	buffer[11]=cs?'1':'0';
+	buffer[12]=32;
+	hexout(buffer+13,t,4);
+	return std::string(buffer,17);
 }
 
 int WatchdogTimeout=1200;
 int ShutdownTimeout=400;
 
 #define POWER_LED_PIN 25
-#define UART_TX_PIN 0
-#define UART_RX_PIN 1
 
 void blink(){
 	static int blink=0;
@@ -76,7 +87,6 @@ void rpcSend(std::string name,std::string value){
 	int id=2e5+(sendCount++);
 	out << "{\"jsonrpc\":\"2.0\",\"result\":\""<<name<<"\"=\""<<value<<"\",\"id\":"<<id<<"}" << std::endl;
 }
-
 
 #include "json.h"
 
@@ -117,6 +127,7 @@ void updateRPC(){
 						std::string title=params->stringMember("title");
 						std::string about=params->stringMember("about");
 						out << "{\"jsonrpc\":\"2.0\",\"result\":\"vidbit.set title " << title << " about " << about << "\",\"id\":"<<id<<"}" << std::endl;
+						connected=true;
 					}
 					if(method=="vidbit.keys"){
 						std::string s=params->stringMember("text");
@@ -164,24 +175,32 @@ void sampleRom(int enable){
 		uint32_t t32=(uint32_t)t64;
 		pinBuffer.push_back({t32,pins});		
 		uint32_t oldPins=pins;
-		if(pinBuffer.size()>1024) break;
+		if(pinBuffer.size()>512) break;
 		while(pins==oldPins){	
 			sleep_us(100);
 			pins=gpio_get_all()|0x02000000;
 		}
 	}
+
+	size_t n=pinBuffer.size();
+	for(size_t i=0;i<n;i++){
+		GPIOSample s=pinBuffer[i];
+		rpcSend("stamp",pinStamp(s.timestamp,s.gpio));
+		cdcFlush();
+	}
+
 }
 
 bool shellActive=false;	//active low 
 
 int runShell(){
+	bool first=false;//true;
 	watchdog_enable(WatchdogTimeout,false);
 	while(!shutdownSystem) {
 		int count=shellCount++;
-		uint32_t pins=gpio_get_all()|0x02000000;
+		uint32_t pins=gpio_get_all();//|0x02000000;
 		if(pins!=shellPins){
 			shellPins=pins;
-/*
 			if((pins&UB3_CE)==0){
 				if(shellActive){
 					sampleRom(UB3_CE);
@@ -189,19 +208,16 @@ int runShell(){
 				}
 			}else{
 				shellActive=true;
-			}
-*/				
-			sampleRom(0);
-			size_t n=pinBuffer.size();
-			for(size_t i=0;i<n;i++){
-				GPIOSample s=pinBuffer[i];
-				rpcSend("stamp",pinStamp(s.timestamp,s.gpio));
-				cdcFlush();
+			}				
+			if(connected && first){
+				sampleRom(0);
+				first=false;
 			}
 			uint64_t t64=time_us_64();
 			uint32_t t32=(uint32_t)t64;
 			rpcSend("pin",pinStamp(t32,pins));
-			sleep_us(100);
+			cdcFlush();
+			sleep_ms(100);
 		}else{
 			sleep_us(500);
 		}
@@ -324,7 +340,7 @@ int initRomulus(){
 		gpio_set_pulls(pin,false,false);
 //		gpio_put(pin, 0);
 	}
-	for(uint pin=26;pin<28;pin++){
+	for(uint pin=26;pin<29;pin++){
 		gpio_init(pin);
 		gpio_set_dir(pin,GPIO_IN);
 		gpio_set_pulls(pin,false,false);
