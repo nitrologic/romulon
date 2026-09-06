@@ -16,12 +16,13 @@ uint64_t microCount(){
 #include <pico/sync.h>
 #include <pico/aon_timer.h>
 
-void setTime(int64_t seconds){
+bool setTime(int64_t seconds){
 	timespec ts;
     ts.tv_sec = seconds;
     ts.tv_nsec = 0;
 //    aon_timer_set_time(&ts);
 	aon_timer_start(&ts);
+	return true;
 }
 std::string wallTime(){
 	timespec ts;
@@ -108,6 +109,22 @@ std::optional<std::string> cdcReadLine();
 
 char cdcBuffer[4096];
 int cdcCharCount=0;
+
+bool hostDTR=false;
+bool hostRTS=false;
+
+void tud_cdc_line_state_cb(uint8_t itf,bool dtr,bool rts){
+	hostDTR=dtr;
+	hostRTS=rts;	
+}
+
+int cdcStatus(){
+	int status=CDCStatus::OK;
+    if(tud_cdc_n_available(0)>=CFG_TUD_CDC_RX_BUFSIZE) status|=CDCStatus::OVERFLOW;
+	if(!hostDTR) status|=DISCONNECTED;
+	if(hostRTS) status|=RTS;
+	return status;
+}
 
 void writeCDC(const char* str, size_t charCount) {
 	if (tud_cdc_connected()) {

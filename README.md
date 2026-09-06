@@ -4,6 +4,18 @@
 
 # romulon 0.6
 
+## SWD Tail
+
+with all the GPIO spoken for the SWD pins on the tail of the PICO are next
+
+[romulon swd tail](swdtail.md)
+
+## trace files
+
+logging the data address pins in fugly json, bring back csv?
+
+* [trace 7](logs/trace7.txt)
+
 ## Snooping the 6502 bus with IC formerly known as UB3
 
 <img src="image/desk1.jpg" alt="desk" width="66%"/>

@@ -1,0 +1,26 @@
+; snoop.pio
+; push (tick, pins) on any change of the 32-bit pin field
+; v0.1 kimi-k3 🜁 $0.159
+
+.program snoop
+	mov     y, pins                 ; seed prev = now
+	mov     isr, ~null              ; tick = 0xFFFFFFFF, counts down
+.wrap_target
+loop:
+	nop	[8]
+	mov     x, pins                 ; 1 sample
+	jmp     x!=y, changed           ; 2 compare against previous
+	mov     x, isr                  ; 3 tick out of ISR
+	jmp     x--, save               ; 4 decrement (wraps through 0 harmlessly)
+save:
+	mov     isr, x                  ; 5 tick back
+	jmp     loop                    ; 6
+changed:
+    mov     y, x              ; y = new pins
+    mov     x, isr            ; save current tick into x
+    push                      ; push the tick
+    mov     isr, y            ; load pins into ISR
+    push                      ; push the pins
+    mov     isr, x            ; restore the tick so it continues decrementing
+    jmp     loop
+.wrap

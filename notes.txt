@@ -1,3 +1,158 @@
+#include "snoop.pio.h"
+
+void initSnoop(){
+	PIO pio = pio0;
+	int sm = 0;
+	uint offset = pio_add_program(pio, &snoop_program);
+	uint32_t pins=0xffff;
+	bool rgbw=false;
+//	snoop_program_init(pio, sm, offset, pins, 800000, rgbw);
+}
+
+void pollSnoop(){
+}
+
+
+#include "snoop.pio.h"
+
+// === Bus Sampler using PIO + DMA ===
+
+static PIO     snoop_pio = pio0;
+static uint    snoop_sm  = 0;
+static uint    snoop_offset;
+static int     snoop_dma_chan = -1;
+
+void initSnoop() {
+    snoop_offset = pio_add_program(snoop_pio, &snoop_program);
+
+    // We are monitoring all pins (the PIO uses "mov x, pins")
+    pio_sm_config c = snoop_program_get_default_config(snoop_offset);
+
+    // Set all pins as inputs (we're snooping)
+    for (int pin = 0; pin < 32; pin++) {
+        pio_gpio_init(snoop_pio, pin);
+    }
+
+    // Shift right, autopush disabled (we push manually in PIO)
+    sm_config_set_in_pins(&c, 0);
+    sm_config_set_in_shift(&c, true, false, 32);   // shift right, no autopush
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX); // more RX depth
+
+    pio_sm_init(snoop_pio, snoop_sm, snoop_offset, &c);
+    pio_sm_set_enabled(snoop_pio, snoop_sm, true);
+
+    // Claim a DMA channel
+    snoop_dma_chan = dma_claim_unused_channel(true);
+}
+
+bool startBusCapture(uint32_t* buffer, size_t max_samples) {
+    if (snoop_dma_chan < 0) return false;
+
+    dma_channel_config cfg = dma_channel_get_default_config(snoop_dma_chan);
+    channel_config_set_read_increment(&cfg, false);           // read from PIO RX
+    channel_config_set_write_increment(&cfg, true);
+    channel_config_set_dreq(&cfg, pio_get_dreq(snoop_pio, snoop_sm, false));
+    channel_config_set_transfer_data_size(&cfg, DMA_SIZE_32);
+
+    dma_channel_configure(
+        snoop_dma_chan,
+        &cfg,
+        buffer,                                    // write address
+        &snoop_pio->rxf[snoop_sm],                 // read address (PIO RX FIFO)
+        max_samples * 2,                           // each event = 2 words (tick + pins)
+        true                                       // start immediately
+    );
+
+    return true;
+}
+
+bool isBusCaptureComplete() {
+    if (snoop_dma_chan < 0) return true;
+    return !dma_channel_is_busy(snoop_dma_chan);
+}
+
+// transfer_count words
+size_t snoopCount() {
+    if (snoop_dma_chan < 0) return 0;
+    return dma_channel_hw_addr(snoop_dma_chan)->transfer_count / 2;
+}
+
+void stopBusCapture() {
+    if (snoop_dma_chan >= 0) {
+        dma_channel_abort(snoop_dma_chan);
+    }
+}
+
+
+//#include <pico/bootrom.h>
+//#include "tusb.h"
+//#include "device/usbd.h"
+//#include "class/cdc/cdc_device.h"
+
+//#include <hardware/pio.h>
+//#include <hardware/rtc.h>
+//#include <sstream>
+
+
+int runRomulus(){
+//	startup();
+	log(picoTitle.c_str());
+//	testComplexInt();
+//	testFFTInt(10);
+//	watchdog_enable(WatchdogTimeout,false);
+//	int count=runSample();
+	for(int i=0;i<count;i++){
+		uint32_t bits=buffer[i*2];
+		uint32_t t=buffer[i*2+1];
+		out << std::bitset<32>(bits) << " " << std::setfill('0') << std::setw(5) << t <<std::endl;
+		cdcFlush();
+	}
+	return 0;
+}
+
+/*
+		bool cpress=c.set(bootSel);
+		if(cpress){
+			mode=(mode+1)&3;
+			std::string setMode = "{\"jsonrpc\":\"2.0\",\"method\":\"romulus.set\",\"params\":{\"mode\":" + std::to_string(mode) + "},\"id\":2}";
+			std::cout<<setMode<<std::endl;
+		}
+
+*/
+
+
+uint32_t buffer[2e3];
+int runSample(){
+	int hitCount=0;
+    while(hitCount<1e3){
+		uint32_t pins=gpio_get_all();
+		currentCount++;
+//		pins&=0x1fe0;	// d0..d7
+//		pins&=0x1fe0;	// d0..d7
+
+		uint64_t t64=time_us_64();
+		uint16_t t32=(uint32_t)t64;
+
+		if(pins!=currentPins){
+			currentPins=pins;
+			buffer[hitCount*2+0]=pins;
+			buffer[hitCount*2+1]=t32;
+			hitCount++;
+		}
+		if((currentCount&0xfff)==0){
+			if(blinkCount!=hitCount){
+				blinkCount=hitCount;
+				blink();
+			}
+		}
+		sleep_us(100);
+	}
+    return 1e4;   
+}
+
+
+A D CS RW 
+
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="0000 ff 1 9971","id":200001}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="1ffe ff 1 9b29","id":200002}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="1fff ff 1 69a0","id":200003}
@@ -77,6 +232,7 @@
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="0c00 ff 1 8fe1","id":200077}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="0009 ff 1 9045","id":200078}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="1fff ff 1 90a9","id":200079}
+
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="007f ff 0 9171","id":200080}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="1fff ff 1 91d5","id":200081}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="00ff ff 0 929d","id":200082}
@@ -109,6 +265,7 @@
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="1fff ff 1 9f81","id":200109}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="06db ff 0 a049","id":200110}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="0707 ff 0 a0ad","id":200111}
+
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="1fff ff 1 a111","id":200112}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="0787 ff 0 a1d9","id":200113}
 [RX] line:{"jsonrpc":"2.0","result":"stamp"="1fff ff 1 a23d","id":200114}

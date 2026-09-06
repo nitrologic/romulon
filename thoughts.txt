@@ -1,0 +1,22 @@
+3
+
+this snippet
+
+[RX] line:{"jsonrpc":"2.0","result":{"sample":"4c47 4c R 1 ed32f9"},"id":212697}
+[RX] line:{"jsonrpc":"2.0","result":{"sample":"4847 4c R 1 ed32f9"},"id":212698}
+[RX] line:{"jsonrpc":"2.0","result":{"sample":"4c47 4c R 1 ed32f3"},"id":212699}
+[RX] line:{"jsonrpc":"2.0","result":{"sample":"4847 4c R 1 ed32f3"},"id":212700}
+
+indicates 2 events at 1 tick and then two at another as things settle, 
+but the tick is out of order ed32f9>ed32f3 ??
+
+2
+
+will infer sync bit in c++ as no gpio available on pico to monitor 6502 pin
+
+1
+
+the timestamp deltas show some settling in the IO
+in pio can we detect jitter?
+in cpp can we filter setlling values
+an opcode bit to infer operand and data fetch bytes

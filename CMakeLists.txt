@@ -31,6 +31,7 @@ pico_sdk_init()
 add_executable(romulon
     picosdk/picosdk.cpp
 	romulon.cpp
+	snoop.cpp
 )
 
 pico_enable_stdio_usb(romulon 1)
@@ -50,6 +51,8 @@ target_link_libraries(romulon
 	hardware_i2c 
 	hardware_pwm
 )
+
+pico_generate_pio_header(romulon ${CMAKE_CURRENT_LIST_DIR}/snoop.pio)
 
 pico_add_extra_outputs(romulon)
 # set_target_properties(romulon PROPERTIES OUTPUT_NAME "romulon")
