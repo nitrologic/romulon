@@ -1,6 +1,6 @@
 3
 
-this snippet
+timestamp is decrement reverse sort order 
 
 [RX] line:{"jsonrpc":"2.0","result":{"sample":"4c47 4c R 1 ed32f9"},"id":212697}
 [RX] line:{"jsonrpc":"2.0","result":{"sample":"4847 4c R 1 ed32f9"},"id":212698}
@@ -8,7 +8,6 @@ this snippet
 [RX] line:{"jsonrpc":"2.0","result":{"sample":"4847 4c R 1 ed32f3"},"id":212700}
 
 indicates 2 events at 1 tick and then two at another as things settle, 
-but the tick is out of order ed32f9>ed32f3 ??
 
 2
 
