@@ -1,3 +1,85 @@
+attempt to trace while piggy back on UB4
+
+[RAW] line:fc5d,65,R,0,6208
+[RAW] line:fc5d,64,R,0,6209
+[RAW] line:fc5c,64,R,0,6213
+[RAW] line:fc5c,44,R,0,6214
+[RAW] line:4c5d,44,R,0,621d
+[RAW] line:4c5d,44,R,1,621e
+[RAW] line:4c49,44,R,1,6228
+[RAW] line:4449,44,R,1,6858
+[RAW] line:4449,65,R,1,6859
+[RAW] line:fc49,65,R,0,685e
+[RAW] line:fc49,20,R,0,685f
+[RAW] line:ac5c,20,R,0,6868
+[RAW] line:a85c,40,R,0,6869
+[RAW] line:d009,40,R,1,6873
+[RAW] line:d009,20,R,1,6874
+[RAW] line:204d,60,R,1,687e
+[RAW] line:204d,65,R,1,687f
+[RAW] line:fc1d,65,R,0,6888
+[RAW] line:fc1d,60,R,0,6889
+[RAW] line:e85c,60,R,0,6893
+[RAW] line:e85c,40,R,0,6894
+[RAW] line:f85c,40,R,0,689d
+[RAW] line:d049,24,R,1,689e
+[RAW] line:d049,20,R,1,689f
+[RAW] line:a84d,41,R,0,68a8
+[RAW] line:a84d,05,R,0,68a9
+[RAW] line:ac4d,05,R,0,68b2
+[RAW] line:8409,05,R,1,68b3
+[RAW] line:8c04,05,R,1,68bd
+[RAW] line:8c04,04,R,1,68be
+
+
+	uint64_t t1=time_us_64();
+	uint64_t t2=time_us_64();
+//    watchdog_enable(WatchdogTimeout, false);
+    // Start DMA capture
+
+    // Let it run until buffer is full or we decide to stop
+    // For now we just wait for DMA to finish
+
+
+	uint64_t t1=time_us_64();
+	uint64_t t2=time_us_64();
+
+
+/**/
+	for(uint pin=0;pin<23;pin++){
+		gpio_init(pin);
+		gpio_set_dir(pin,GPIO_IN);
+		gpio_set_pulls(pin,false,false);
+//		gpio_put(pin, 0);
+	}
+	for(uint pin=26;pin<29;pin++){
+		gpio_init(pin);
+		gpio_set_dir(pin,GPIO_IN);
+		gpio_set_pulls(pin,false,false);
+//		gpio_put(pin, 0);
+	}
+
+
+#ifdef USE_SNOOP
+#endif
+
+#ifdef USE_SAMPLEROM
+			if((pins&UB3_CE)==0){
+				if(shellActive){
+					sampleRom(UB3_CE);
+					shellActive=false;
+				}
+			}else{
+				shellActive=true;
+			}				
+			if(connected && first){
+				sampleRom(0);
+				first=false;
+			}
+#endif			
+
+
+
 #include "snoop.pio.h"
 
 void initSnoop(){

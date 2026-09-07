@@ -29,6 +29,12 @@
 #include <string>
 #include <cstdint>
 
+#include "json.h"
+
+utf8 title="rpccoms 0.4.0";
+
+JSONParser jsonParser;
+
 struct ComPortInfo {
 	std::string portName;
 	std::string devicePath;
@@ -298,14 +304,31 @@ std::string escapeString(const std::string& value) {
     }
     return result;
 }
-
+void onLine(utf8 json){
+	JSValue *result;
+//	int err=jsonParser.parseJSON(line,&result);
+	size_t i=json.find("{\"sample\":\"");
+	if(i!=std::string::npos){
+		size_t j=json.find("\"},",i);
+		if(j!=std::string::npos){
+			i+=11;
+			utf8 sample=json.substr(i,j-i);
+			std::cout << "[RAW] line:" << sample << std::endl;	
+		}else{
+			std::cout << "[RAW] fail on close brace find:" << json.substr(i) << std::endl;	
+		}
+	}else{
+		utf8 line=escapeString(json);
+		std::cout << "[RX] line:" << line << std::endl;	
+	}
+}
 
 int main() {
 	SetConsoleCP(CP_UTF8);
 	SetConsoleOutputCP(CP_UTF8);
 
 	HWND consoleWindow=GetConsoleWindow();
-	std::cout << "rpccoms 0.3.4 looking for \"USB\\VID_2E8A\""<<std::endl;
+	std::cout << title << " looking for \"USB\\VID_2E8A\""<<std::endl;
 	std::cout << " HWND:"<<((int64_t)consoleWindow)<<std::endl;
 	enumeratePorts();
 
@@ -341,7 +364,8 @@ int main() {
 	while(true){
 		lineValue=rpcFifo.readLine();
 		if(lineValue.has_value()){
-			std::cout << "[RX] line:" << escapeString(lineValue.value()) << std::endl;
+//			std::cout << "[RX] line:" << escapeString(lineValue.value()) << std::endl;
+			onLine(lineValue.value());
 		}else{
 			std::this_thread::sleep_for(std::chrono::milliseconds(5));			
 //			pollMessages(consoleWindow);

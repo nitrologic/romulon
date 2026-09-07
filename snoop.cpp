@@ -13,24 +13,22 @@ static int snoop_dma_chan = -1;
 
 size_t snoopRequested=0;
 
-void initSnoop() {
-	snoop_offset = pio_add_program(snoop_pio, &snoop_program);
-	pio_sm_config c = snoop_program_get_default_config(snoop_offset);
-	for(uint pin=0;pin<23;pin++){
-		pio_gpio_init(snoop_pio, pin);
-		gpio_set_pulls(pin,false,false);
 //		gpio_init(pin);
 //		gpio_set_dir(pin,GPIO_IN);
 //		gpio_put(pin, 0);
+
+void initSnoop() {
+	snoop_offset = pio_add_program(snoop_pio, &snoop_program);
+	for(uint pin=0;pin<23;pin++){
+		pio_gpio_init(snoop_pio, pin);
+		gpio_set_pulls(pin,false,false);
 	}
 	for(uint pin=26;pin<29;pin++){
 		pio_gpio_init(snoop_pio, pin);
 		gpio_set_pulls(pin,false,false);
-	//		gpio_init(pin);
-	//		gpio_set_dir(pin,GPIO_IN);
 	}
-	pio_sm_config config = snoop_program_get_default_config(snoop_offset);
 	// Shift right, autopush disabled (we push manually in PIO)
+	pio_sm_config c = snoop_program_get_default_config(snoop_offset);
 	sm_config_set_in_pins(&c, 0);
 	sm_config_set_in_shift(&c, true, false, 32);   // shift right, no autopush
 	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX); // more RX depth

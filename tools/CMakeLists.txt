@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(WIN32)
 
 add_executable(rpc
+	json.h
 	enumports.cpp
 	rpccoms.cpp
 )

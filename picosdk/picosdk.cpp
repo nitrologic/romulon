@@ -121,8 +121,8 @@ void tud_cdc_line_state_cb(uint8_t itf,bool dtr,bool rts){
 int cdcStatus(){
 	int status=CDCStatus::OK;
     if(tud_cdc_n_available(0)>=CFG_TUD_CDC_RX_BUFSIZE) status|=CDCStatus::OVERFLOW;
-	if(!hostDTR) status|=DISCONNECTED;
-	if(hostRTS) status|=RTS;
+	if(!hostDTR) status|=NOTREADY;
+	if(!hostRTS) status|=RTS;
 	return status;
 }
 
@@ -137,10 +137,14 @@ void writeCDC(const char* str, size_t charCount) {
 	}
 }
 
+// out is a stringstream
+
 void cdcFlush(){
 	if(!out.str().empty()){
 		message=out.str();
-		writeCDC(message.c_str(),message.length());
+		const char *s=message.c_str();
+		size_t n=message.length();
+		writeCDC(s,n);
 		out.str("");
 		out.clear();
 	}

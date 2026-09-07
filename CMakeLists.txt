@@ -29,6 +29,7 @@ project(romulon C CXX ASM)
 pico_sdk_init()
 
 add_executable(romulon
+	json.h
     picosdk/picosdk.cpp
 	romulon.cpp
 	snoop.cpp

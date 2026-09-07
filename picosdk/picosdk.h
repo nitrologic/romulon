@@ -22,7 +22,7 @@ bool setTime(int64_t seconds);
 #include <sstream>
 
 extern std::stringstream out;
-enum CDCStatus{OK,OVERFLOW,DISCONNECTED,RTS=4};
+enum CDCStatus{OK,OVERFLOW,NOTREADY,RTS=4};	//DISCONNECTED
 
 int cdcStatus();
 void cdcInit();

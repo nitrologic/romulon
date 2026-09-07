@@ -18,6 +18,14 @@
 #include "picosdk/picosdk.h"
 #include "snoop.h"
 
+// state vars modified by updateRPC
+
+bool snoopConnected=false;	
+bool snoopReady=false;
+
+// incoming romulon.json
+// std::string picoTitle = "romulon 0.9.1";
+
 std::string stringify(std::string text){
 	const char *hex = "0123456789abcdef";
 	std::string out;
@@ -46,8 +54,6 @@ std::string stringify(std::string text){
 	return out;
 }
 
-std::string picoTitle = "romulon 0.8🟠";
-
 struct GPIOSample {
 	uint32_t timestamp;
 	uint32_t gpio;
@@ -55,7 +61,7 @@ struct GPIOSample {
 
 
 //#define USE_SAMPLEROM
-#define USE_PIO_SAMPLER
+#define USE_SNOOP
 
 std::vector<GPIOSample> pinBuffer;
 
@@ -65,7 +71,9 @@ std::string pinStamp(uint32_t t,uint32_t pins);
 
 uint32_t captureBuffer[MAX_SAMPLES * 2];   // tick + pins pairs
 
-void sampleRomPio(uint32_t trigger_mask, bool trigger_on_low) {
+uint32_t epoch=0; // pio timestamps decrement from here
+
+void snoopRom(uint32_t trigger_mask, bool trigger_on_low) {
     pinBuffer.clear();
     pinBuffer.reserve(MAX_SAMPLES);
     if (trigger_mask != 0) {
@@ -75,33 +83,23 @@ void sampleRomPio(uint32_t trigger_mask, bool trigger_on_low) {
             sleep_us(1);
         } while (((pins & trigger_mask) == 0) == trigger_on_low);
     }
-//    watchdog_enable(WatchdogTimeout, false);
-    // Start DMA capture
     if (!beginSnoop(captureBuffer, MAX_SAMPLES)) {
         rpcSend("error", "beginSnoop failure");
         return;
     }
-
-    // Let it run until buffer is full or we decide to stop
-    // For now we just wait for DMA to finish
     while (!snoopComplete()) {
         watchdog_update();
         tud_task();
         sleep_ms(1);
     }
-
 //    watchdog_enable(WatchdogTimeout, true);
-
     size_t count = getCapturedSampleCount();
     if (count > MAX_SAMPLES) count = MAX_SAMPLES;
-
     // Process the captured data
     for (size_t i = 0; i < count; i++) {
         uint32_t tick  = captureBuffer[i * 2];
         uint32_t pins  = captureBuffer[i * 2 + 1];
-
         rpcSend("sample",pinStamp(tick,pins));
-
         if ((i & 3) == 3) {
             watchdog_update();
             tud_task();
@@ -109,11 +107,9 @@ void sampleRomPio(uint32_t trigger_mask, bool trigger_on_low) {
             sleep_ms(5);
         }
     }
-
     rpcSend("capture", "done " + std::to_string(count) + " samples");
 }
 
-bool connected=false;
 
 const uint32_t UB3_CE = 0x04000000;
 
@@ -128,7 +124,7 @@ const uint32_t UB3_CE = 0x04000000;
 // A8..A9   | 3..4
 // A13..A15 | 0..2  * 
 // RW       | 28		| 0x10000000
-// * courtesy 6502 pins 23..25 28
+// * courtesy 6502 pins 23..25 34
 
 int reverse8(int bits){
 	return
@@ -142,7 +138,11 @@ int reverse8(int bits){
 		((bits&0x01)<<7);
 }
 
+char stampBuffer[20]={32};
+
 std::string pinStamp(uint32_t tick,uint32_t pins){
+	char *buffer=stampBuffer;
+	if(epoch==0) epoch=tick;
 	int d=(pins>>13)&0xff;
 	int a07=reverse8((pins>>5)&0xff);
 	int a89=(pins>>3)&0x03;
@@ -153,17 +153,16 @@ std::string pinStamp(uint32_t tick,uint32_t pins){
 	int cs=(pins>>26)&1;
 	int rw=(pins>>28)&1;
 	int a=a07|(a89<<8)|(a10<<10)|(a11<<11)|(a12<<12)|(a1315<<13);
-	char buffer[20]={32};
 	hexout(buffer+0,a,4);
-	buffer[5]=32;
-	hexout(buffer+6,d,2);
-	buffer[8]=32;
-	buffer[9]=rw?'R':'W';
-	buffer[10]=32;
-	buffer[11]=cs?'1':'0';
-	buffer[12]=32;
-	hexout(buffer+13,tick,6);
-	return std::string(buffer,19);
+	buffer[4]=',';
+	hexout(buffer+5,d,2);
+	buffer[7]=',';
+	buffer[8]=rw?'R':'W';
+	buffer[9]=',';
+	buffer[10]=cs?'1':'0';
+	buffer[11]=',';
+	hexout(buffer+12,(epoch-tick),4);
+	return std::string(buffer,16);
 }
 
 int WatchdogTimeout=1200;
@@ -181,7 +180,7 @@ int sendCount=0;
 
 void rpcSend(std::string name,std::string value){
 	int id=2e5+(sendCount++);
-	out << "{\"jsonrpc\":\"2.0\",\"result\":{\""<<name<<"\":\""<<value<<"\"},\"id\":"<<id<<"}" << std::endl;
+	out << "{\"jsonrpc\":\"2.0\",\"result\":{"<<stringify(name)<<":"<<stringify(value)<<"},\"id\":"<<id<<"}" << std::endl;
 }
 
 #include "json.h"
@@ -220,8 +219,10 @@ void updateRPC(){
 					if(method=="vidbit.set"){
 						std::string title=params->stringMember("title");
 						std::string about=params->stringMember("about");
-						out << "{\"jsonrpc\":\"2.0\",\"result\":\"vidbit.set title " << title << " about " << about << "\",\"id\":"<<id<<"}" << std::endl;
-						connected=true;
+						utf8 result="vidbit.set title:" + title + " about:" + about;
+						out << "{\"jsonrpc\":\"2.0\",\"result\":"<<stringify(result)<<",\"id\":"<<id<<"}" << std::endl;
+						snoopConnected=true;
+						snoopReady=true;
 					}
 					if(method=="vidbit.keys"){
 						std::string s=params->stringMember("text");
@@ -288,11 +289,10 @@ bool shellActive=false;	//active low
 
 int runShell(){
 	watchdog_enable(WatchdogTimeout,true);
-	bool first=true;
 	while(!shutdownSystem) {
 		int status=cdcStatus();
 		if(status&3){
-			rpcSend("status&3 panic",std::to_string(status));
+			rpcSend("status&3 panic",std::to_string(status));	// booting with panic on 6
 		}
 		int count=shellCount++;
 		uint32_t pins=gpio_get_all();//|0x02000000;
@@ -300,27 +300,10 @@ int runShell(){
 		if((pins|mask)!=(shellPins|mask)){
 			shellPins=pins;
 
-#ifdef USE_PIO_SAMPLER
-			if(connected && first){
-				sampleRomPio(0,false);
-				first=false;
+			if(snoopConnected && snoopReady){
+				snoopReady=false;
+				snoopRom(0,false);
 			}
-#endif
-
-#ifdef USE_SAMPLEROM
-			if((pins&UB3_CE)==0){
-				if(shellActive){
-					sampleRom(UB3_CE);
-					shellActive=false;
-				}
-			}else{
-				shellActive=true;
-			}				
-			if(connected && first){
-				sampleRom(0);
-				first=false;
-			}
-#endif			
 			uint64_t t64=time_us_64();
 			uint32_t t32=(uint32_t)t64;
 			rpcSend("pin",pinStamp(t32,pins));
@@ -405,29 +388,14 @@ uint64_t microCount();
 uint32_t cycleFrequency();
 
 int initRomulus(){
-	uint64_t t1=time_us_64();
-	uint64_t t2=time_us_64();
-	sleep_ms(400);
-#ifdef USE_PIO_SAMPLER
 	initSnoop();
-#else
-	for(uint pin=0;pin<23;pin++){
-		gpio_init(pin);
-		gpio_set_dir(pin,GPIO_IN);
-		gpio_set_pulls(pin,false,false);
-//		gpio_put(pin, 0);
-	}
-	for(uint pin=26;pin<29;pin++){
-		gpio_init(pin);
-		gpio_set_dir(pin,GPIO_IN);
-		gpio_set_pulls(pin,false,false);
-//		gpio_put(pin, 0);
-	}
-#endif
 	gpio_init(POWER_LED_PIN);
 	gpio_set_dir(POWER_LED_PIN,GPIO_OUT);
+	sleep_ms(40);
 	return 0;
 }
+
+// PICO entry point for ondevice sampling
 
 int main(void){
 	stdio_init_all();

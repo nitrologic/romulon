@@ -1,3 +1,11 @@
+parseJSON non ascii char in js 0 pos 41
+[RX] line:{\"jsonrpc\":\"2.0\",\"result\":{\"sample\":\"5857 59 R 1 1a6d\"},\"id\":213587}
+parseJSON non ascii char in js 0 pos 41
+[RX] line:{\"jsonrpc\":\"2.0\",\"result\":{\"sample\":\"5957 59 R 1 1a74\"},\"id\":213588}
+[RX] line:{\"jsonrpc\":\"2.0\",\"result\":{\"capture\":\"done 4096 samples\"},\"id\":213589}
+parseJSON non ascii char in js 0 pos 38
+[RX] line:{\"jsonrpc\":\"2.0\",\"result\":{\"pin\":\"e000 00 R 0 5f60\"},\"id\":213590}
+
 if(WIN32)
 
 add_executable(tx

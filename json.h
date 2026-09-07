@@ -304,6 +304,7 @@ struct JSONParser{
 			char c=js[i];
 			if(c<9 || c>127){
 				std::cout << "parseJSON non ascii char in js "<< (int)c << " pos " << i << std::endl;
+				std::cout << js.substr(0,i) << std::endl;
 				return 1;
 			}
 		}
